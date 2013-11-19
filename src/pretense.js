@@ -11,7 +11,8 @@ var util = require( "util" );
 // ##NPM
 var express = require( "express" );
 var imagesize = require( "imagesize" );
-var imageS = require( "image-size" );
+var chokidar = require( "chokidar" );
+var _ = require( "lodash" );
 
 // #Config
 var validImageFormats = [ "png" ];
@@ -31,24 +32,26 @@ app.set( "port", port );
 app.set( "views", path.join( __dirname, "../assets" ) );
 app.set( "view engine", "jade" );
 
-// ##Routes
-app.get( "/", function ( req, res ) {
-    getImageFiles( function ( err, files ) {
-        // If there was an error loading the files report it
-        if ( err ) {
-            res.json( 500, err );
-            return;
-        }
-        res.render( "view", {
-            title: title,
-            files: files,
-            backgroundColor: backgroundColor,
-            shouldCenter: !!shouldCenter
-        });
+// #Images
 
+var imageFiles = [];
+
+// ## Image loading
+
+// Now handled by the file watcher
+
+// ##Routes
+// Serves the main app view
+app.get( "/", function ( req, res ) {
+    res.render( "view", {
+        title: title,
+        files: imageFiles,
+        backgroundColor: backgroundColor,
+        shouldCenter: !!shouldCenter
     });
 });
 
+// Serves the files, requests the browser not to cache the image
 app.get( "/i/:file", function ( req, res ) {
     // Stop the file from caching
     res.header( 'Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0' );
@@ -57,6 +60,25 @@ app.get( "/i/:file", function ( req, res ) {
     fs.createReadStream( path.join( imageFilesDirectory, req.params.file ) ).pipe( res );
 });
 
+function processFile ( filepath, callback ) {
+    var imageFile = null;
+    var stream = fs.createReadStream( filepath );
+    imagesize(stream, function ( err, result ) {
+        if ( err ) {
+            // ignoring, as it probably means this is not an image
+            //console.log( "imagesize error on ", filepath );
+        }
+        if ( !err && validImageFormats.indexOf( result.format ) > -1 ) {
+           imageFile = {
+                f: path.basename( filepath ),
+                w: result.width,
+                h: result.height
+            };
+        }
+        stream.unpipe();
+        callback( err, imageFile );
+    });
+}
 
 // #Server
 var server = http.createServer( app );
@@ -70,9 +92,9 @@ server.listen( app.get( "port" ), function() {
 
 // #Utils
 
-// ##Files
+// ##Image loading
+
 function getImageFiles( callback ) {
-    // could be faster by not stating images ever request
 
     var imageFiles = [];
 
@@ -91,18 +113,11 @@ function getImageFiles( callback ) {
 
             var file = files[ index ];
 
-            var stream = fs.createReadStream( path.join( imageFilesDirectory, file ) );
-            imagesize(stream, function ( err, result ) {
-                if ( err ) {
-                    // do nothing, presume the file was not an image
-                } else if ( validImageFormats.indexOf( result.format ) > -1 ) {
-                    imageFiles.push( {
-                        f: file,
-                        w: result.width,
-                        h: result.height
-                    });
+            processFile( file, function ( err, imageFile ) {
+                if ( !err && imageFile ) {
+                    // ignoring the error as it is probably just not an image fiels
+                    imageFiles.push( imageFile );
                 }
-                stream.unpipe();
                 next();
             });
 
@@ -115,8 +130,62 @@ function getImageFiles( callback ) {
     });
 }
 
+// ## File watcher
+// This keeps the `imageFiles` array up to date with latest changes
+// It will also update the any clients of changes via the websocket connection
+
+var fileWatcher = new chokidar.watch( imageFilesDirectory );
+
+fileWatcher.on( "add", function ( file ) {
+    addImageFile( file, function ( err ) {
+        if ( err ) { console.log( "Error adding file on file system add", err ); return; } 
+    });
+});
+
+fileWatcher.on( "unlink", function ( file ) {
+    removeImageFile( file, function ( err ) {
+        if ( err ) { console.log( "Error deleting file on file system remove", err ); return; } 
+    });
+});
+
+fileWatcher.on( "change", function( file ) {
+    removeImageFile( file, function ( err ) {
+        if ( err ) { console.log( "Error deleting file on file system change", err ); return; } 
+        addImageFile( file, function ( err ) {
+            if ( err ) { console.log( "Error adding file on file system change", err ); return; } 
+        });
+    });
+});
+
+// ### File watcher utils
+
+// callbacks ( null, null ) if file is invalud
+function addImageFile( file, callback ) {
+    processFile( file, function ( err, imageFile ) {
+        if ( err ) {  
+            if ( err === "invalid" ) {
+                callback( null, null );
+            } else {
+                callback( err ); 
+            }
+            return;
+        }
+        imageFiles.push( imageFile );
+        imageFiles = _.sortBy( imageFiles, "f" );
+    });
+}
+
+function removeImageFile( filepath, callback ) {
+    console.log( "Should be removing", file );
+    var file = path.basename( filepath );
+    imageFiles = _.remove( imageFiles, function ( imageFile ) {
+        return imageFile.f !== file;
+    });
+    callback();
+}
+
 // ##Loop
-function loop (iterations, fn, callback) {
+function loop ( iterations, fn, callback ) {
     var index = 0;
     var done = false;
     var end =  function() {
@@ -138,8 +207,9 @@ function loop (iterations, fn, callback) {
 }
 
 // ##Console color
-function green() { return "\033[1;32m" +  [].slice.apply(arguments).join(' ') + "\033[0m"; }
-function lcyan() { return "\033[1;36m" + [].slice.apply(arguments).join(' ') + "\033[0m"; }
-function bold() { return "\033[1m" + [].slice.apply(arguments).join(' ') + "\033[0m"; }
+function green () { return "\033[1;32m" +  [].slice.apply(arguments).join(' ') + "\033[0m"; }
+function lcyan () { return "\033[1;36m" + [].slice.apply(arguments).join(' ') + "\033[0m"; }
+function bold () { return "\033[1m" + [].slice.apply(arguments).join(' ') + "\033[0m"; }
+function red () { return "\033[0;31m" + [].slice.apply(arguments).join(' ') + "\033[0m"; }
 
 };
