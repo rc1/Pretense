@@ -1,0 +1,91 @@
+doctype 5
+html
+    head
+        title= title
+
+        //- # Styles
+        style.
+            body, html { margin: 0; padding: 0; }
+            body { background: url( "backgroun.png" ); }   
+
+        style= "#container { background-color:" + backgroundColor +"; }"
+
+        //- # JS
+        //- ## Libs
+        script(src="jquery-2.0.3.min.js")
+        script(src="W.min.js")
+        //- ## Bootstrap data
+        script!= "var files="+ JSON.stringify( files ) +";"
+        //- ## Main
+        script.
+
+            var currentIndex = -1;
+
+            // load the last file on load
+            $( function () { 
+                currentIndex = files.length-2; 
+                next(); 
+            });
+
+            // ### Actions
+            
+            //- function resizeWindow () {
+            //-     resizeWindowWidth();
+            //-     resizeWindowHeight();
+            //- }
+            
+            //- function resizeWindowWidth () {
+            //-     console.log( "@stub resizeWindowWidth" );
+            //- }
+
+            //- function resizeWindowHeight () {
+            //-     console.log( "@stub resizeWindowHeight" );
+            //- }
+            
+            function next () {                
+                console.log( currentIndex );
+                if ( currentIndex < files.length -1 ) {
+                    render( files[ ++currentIndex ] );
+                    return;
+                }
+                console.log( "no more files" );
+            }
+
+            function previous () {
+                if ( currentIndex > 0 ) {
+                    render( files[ --currentIndex ] );
+                    return;
+                }   
+                console.log( "already at the first file" );
+            }
+
+            function render ( file ) {        
+                // ### Add the background image
+                $( "#container" ).css( {
+                    width : file.w,
+                    height: file.h,
+                    backgroundImage: "url('i/"+file.f+"')"
+                });
+            }
+
+            // ### Keypress
+            
+            $( document ).on( "keydown", function ( e ) {
+                switch ( e.keyCode )  {
+                    case /* left */37: previous(); break;
+                    case /* right */39: next(); break;
+                    //- case /* w */87: resizeWindowWidth(); break;
+                    //- case /* h */72: resizeWindowHeight(); break;
+                    //- case /* r */82: resizeWindow(); break;
+                    default:  console.log( "Uncaugh keypress", e.keyCode ); break;
+                }
+            });
+
+            // ### Click
+            
+            $( body ).on( "click touch", function () {
+                next();
+            });
+
+    body
+        #container
