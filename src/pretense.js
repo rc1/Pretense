@@ -2,8 +2,6 @@
 // Wrapped this way to app preseting some args from the binary
 module.exports = function ( argv ) {
 
-console.log( "REMEMVER TO MOVE BACK TO REPO" );
-
 // #Dependencies
 var http = require( "http" );
 var fs = require( "fs" );
@@ -13,9 +11,11 @@ var util = require( "util" );
 // ##NPM
 var express = require( "express" );
 var imagesize = require( "imagesize" );
+var imageS = require( "image-size" );
 
 // #Config
 var validImageFormats = [ "png" ];
+var shouldCenter = process.env.SHOULD_CENTER || argv.c;
 var title = process.env.TITLE || argv.t || "pretense";
 var backgroundColor = process.env.BACKGROUND_COLOR || argv.b || "#FFFFFF";
 var port = process.env.PORT || argv.p || 4000;
@@ -42,7 +42,8 @@ app.get( "/", function ( req, res ) {
         res.render( "view", {
             title: title,
             files: files,
-            backgroundColor: backgroundColor
+            backgroundColor: backgroundColor,
+            shouldCenter: !!shouldCenter
         });
 
     });
@@ -71,6 +72,7 @@ server.listen( app.get( "port" ), function() {
 
 // ##Files
 function getImageFiles( callback ) {
+    // could be faster by not stating images ever request
 
     var imageFiles = [];
 
@@ -100,14 +102,13 @@ function getImageFiles( callback ) {
                         h: result.height
                     });
                 }
+                stream.unpipe();
                 next();
             });
 
         }, finishedReadingAndStatingFile );
 
         function finishedReadingAndStatingFile () {
-
-            console.log( util.inspect( imageFiles, { colors: true }) );
             callback( null, imageFiles );
         }
 

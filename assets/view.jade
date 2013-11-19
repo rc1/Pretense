@@ -10,6 +10,11 @@ html
 
         style= "#container { background-color:" + backgroundColor +"; }"
 
+        - if ( shouldCenter )
+            style= "body { background-color:" + backgroundColor +"; background-image: none; }"
+            style.
+                #container { margin: 0 auto; }
+
         //- # JS
         //- ## Libs
         script(src="jquery-2.0.3.min.js")
