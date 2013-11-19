@@ -13,10 +13,12 @@ var express = require( "express" );
 var imagesize = require( "imagesize" );
 var chokidar = require( "chokidar" );
 var _ = require( "lodash" );
+var WebSocketServer = require( "ws" ).Server;
 
 // #Config
 var validImageFormats = [ "png" ];
 var shouldCenter = process.env.SHOULD_CENTER || argv.c;
+var shouldLoadFirstImage = process.env.SHOULD_LOAD_FIRST || argv.f;
 var title = process.env.TITLE || argv.t || "pretense";
 var backgroundColor = process.env.BACKGROUND_COLOR || argv.b || "#FFFFFF";
 var port = process.env.PORT || argv.p || 4000;
@@ -32,13 +34,9 @@ app.set( "port", port );
 app.set( "views", path.join( __dirname, "../assets" ) );
 app.set( "view engine", "jade" );
 
-// #Images
+// #ImageFiles
 
 var imageFiles = [];
-
-// ## Image loading
-
-// Now handled by the file watcher
 
 // ##Routes
 // Serves the main app view
@@ -47,7 +45,8 @@ app.get( "/", function ( req, res ) {
         title: title,
         files: imageFiles,
         backgroundColor: backgroundColor,
-        shouldCenter: !!shouldCenter
+        shouldCenter: !!shouldCenter,
+        shouldLoadFirstImage: shouldLoadFirstImage
     });
 });
 
@@ -83,6 +82,11 @@ function processFile ( filepath, callback ) {
 // #Server
 var server = http.createServer( app );
 
+// Create the websocket server and bind it to the express server
+var wss = new WebSocketServer({
+    server: server
+});
+
 // Start
 server.listen( app.get( "port" ), function() {
     console.log( lcyan( "Pretense", "loading images from" )+ ":"  );
@@ -99,20 +103,13 @@ function getImageFiles( callback ) {
     var imageFiles = [];
 
     fs.readdir( imageFilesDirectory , function ( err, files ) {
+        if ( err ) { callback( err ); return; }   
 
         // Ensure alphabetcical sorting
         files = files.sort();
-
-        if ( err ) {
-            callback( err );
-            return;
-        }   
-
         // Loop through each file sync
         loop( files.length, function ( index, next, end ) {
-
             var file = files[ index ];
-
             processFile( file, function ( err, imageFile ) {
                 if ( !err && imageFile ) {
                     // ignoring the error as it is probably just not an image fiels
@@ -120,13 +117,11 @@ function getImageFiles( callback ) {
                 }
                 next();
             });
-
         }, finishedReadingAndStatingFile );
 
         function finishedReadingAndStatingFile () {
             callback( null, imageFiles );
         }
-
     });
 }
 
@@ -139,20 +134,25 @@ var fileWatcher = new chokidar.watch( imageFilesDirectory );
 fileWatcher.on( "add", function ( file ) {
     addImageFile( file, function ( err ) {
         if ( err ) { console.log( "Error adding file on file system add", err ); return; } 
+        broadcastChange( "added", path.basename( file ) );
     });
 });
 
 fileWatcher.on( "unlink", function ( file ) {
     removeImageFile( file, function ( err ) {
         if ( err ) { console.log( "Error deleting file on file system remove", err ); return; } 
+        broadcastChange( "deleted", path.basename( file ) );
     });
 });
 
 fileWatcher.on( "change", function( file ) {
     removeImageFile( file, function ( err ) {
         if ( err ) { console.log( "Error deleting file on file system change", err ); return; } 
-        addImageFile( file, function ( err ) {
+        addImageFile( file, function ( err, file ) {
             if ( err ) { console.log( "Error adding file on file system change", err ); return; } 
+            if ( file ) {
+                broadcastChange( "changed", path.basename( file.f ) );
+            }
         });
     });
 });
@@ -161,28 +161,53 @@ fileWatcher.on( "change", function( file ) {
 
 // callbacks ( null, null ) if file is invalud
 function addImageFile( file, callback ) {
-    processFile( file, function ( err, imageFile ) {
-        if ( err ) {  
-            if ( err === "invalid" ) {
-                callback( null, null );
-            } else {
-                callback( err ); 
+    setTimeout( function () { 
+        processFile( file, function ( err, imageFile ) {
+            if ( err ) {  
+                if ( err === "invalid" ) {
+                    console.log( "invalid file", file );
+                    callback( null, null );
+                } else {
+                    callback( err ); 
+                }
+                return;
             }
-            return;
-        }
-        imageFiles.push( imageFile );
-        imageFiles = _.sortBy( imageFiles, "f" );
-    });
+            imageFiles.push( imageFile );
+            imageFiles = _.sortBy( imageFiles, "f" );
+            callback( null, imageFile );
+        });
+    }, 3000); // I don't like this, but illustator takes a while to right the imaeg
 }
 
 function removeImageFile( filepath, callback ) {
-    console.log( "Should be removing", file );
     var file = path.basename( filepath );
     imageFiles = _.remove( imageFiles, function ( imageFile ) {
         return imageFile.f !== file;
     });
     callback();
 }
+
+// ##Websocket comms
+
+var lastChangeUpdate = 0;
+
+function broadcastChange( changeType, file ) {
+    var json = {};
+    try {
+        json = JSON.stringify( {
+            resource : "/"+changeType,
+            file : file,
+            imageFiles : imageFiles
+        } );
+    } catch ( err ) {
+        console.log( "Error trying to jsonify imageFiles", err );
+        return;
+    }
+    for ( var i in wss.clients ) {
+        wss.clients[ i ].send( json );
+    }
+}
+
 
 // ##Loop
 function loop ( iterations, fn, callback ) {
