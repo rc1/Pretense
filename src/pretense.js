@@ -60,6 +60,13 @@ app.get( "/i/:file", function ( req, res ) {
 });
 
 function processFile ( filepath, callback ) {
+    // first check to see the basename ends with _1
+    // as illustrator saves to this file first
+    if ( (/_1/).test( path.basename( filepath ) ) ) {
+	callback( "Might be illustator save file");
+	return;
+    }
+
     var imageFile = null;
     var stream = fs.createReadStream( filepath );
     imagesize(stream, function ( err, result ) {
@@ -172,6 +179,7 @@ function addImageFile( file, callback ) {
                 }
                 return;
             }
+            if ( !imageFile ) { return callback( null, null ); }
             imageFiles.push( imageFile );
             imageFiles = _.sortBy( imageFiles, "f" );
             callback( null, imageFile );
