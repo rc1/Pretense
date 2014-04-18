@@ -16,7 +16,7 @@ if ( process.argv.indexOf( 'init:jade' ) > -1 ) {
         .pipe( fs.createWriteStream( path.join( argv.d, 'index.jade' ) ));
 } else if (  process.argv.indexOf( 'init:servant' ) > -1 ) {
 	// copy the script-run.sh file over to the current directory
-    fs.createReadStream( path.join( path.dirname( require.main ), '../assets/script-run.sh' ) )
+    fs.createReadStream( path.join( path.dirname( require.main.filename  ), '../assets/script-run.sh' ) )
         .pipe( fs.createWriteStream( path.join( argv.d, 'script-run.sh' ) ));
 } else {
     // or start the app
