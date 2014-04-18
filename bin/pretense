@@ -11,13 +11,15 @@ var path = require( 'path' );
 argv.d = process.env.DIRECTORY || argv.dirname || argv.d || '.';
 
 if ( process.argv.indexOf( 'init:jade' ) > -1 ) {
-    fs.createReadStream( path.join( __dirname, '../assets/template.jade' ) )
+	// copy the jade template file over to the current directory
+    fs.createReadStream( path.join( path.dirname( require.main.filename ), '../assets/template.jade' ) )
         .pipe( fs.createWriteStream( path.join( argv.d, 'index.jade' ) ));
 } else if (  process.argv.indexOf( 'init:servant' ) > -1 ) {
-    fs.createReadStream( path.join( __dirname, '../assets/script-run.sh' ) )
+	// copy the script-run.sh file over to the current directory
+    fs.createReadStream( path.join( path.dirname( require.main ), '../assets/script-run.sh' ) )
         .pipe( fs.createWriteStream( path.join( argv.d, 'script-run.sh' ) ));
 } else {
-    // start the app
+    // or start the app
     pretense( argv );
 }
  
