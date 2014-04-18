@@ -6,7 +6,7 @@ The client side implementation is a single JS library, so custom HTML can be eas
 
 # Installation
 
-    npm install pretense --save
+    npm install pretense -g
 
 # Usage
 
