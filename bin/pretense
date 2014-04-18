@@ -12,12 +12,24 @@ argv.d = process.env.DIRECTORY || argv.dirname || argv.d || '.';
 
 if ( process.argv.indexOf( 'init:jade' ) > -1 ) {
 	// copy the jade template file over to the current directory
-    fs.createReadStream( path.join( path.dirname( require.main.filename ), '../assets/template.jade' ) )
-        .pipe( fs.createWriteStream( path.join( argv.d, 'index.jade' ) ));
+	var file = path.join( path.dirname( require.main.filename ), '../assets/template.jade' );
+
+	if ( !fs.existsSync( file ) ) {
+	    fs.createReadStream( file )
+	        .pipe( fs.createWriteStream( path.join( argv.d, 'index.jade' ) ));
+    } else {
+    	console.error( "index.jade already exists in the directory" );
+    }
 } else if (  process.argv.indexOf( 'init:servant' ) > -1 ) {
 	// copy the script-run.sh file over to the current directory
-    fs.createReadStream( path.join( path.dirname( require.main.filename  ), '../assets/script-run.sh' ) )
-        .pipe( fs.createWriteStream( path.join( argv.d, 'script-run.sh' ) ));
+	var file = path.join( path.dirname( require.main.filename  ), '../assets/script-run.sh' );
+
+	if ( !fs.existsSync( file ) ) {
+	    fs.createReadStream(  )
+	        .pipe( fs.createWriteStream( path.join( argv.d, 'script-run.sh' ) ));
+	} else {
+	   	console.error( "script-run.sh already exists in the directory" );
+	}
 } else {
     // or start the app
     pretense( argv );
