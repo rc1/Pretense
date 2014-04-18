@@ -1,0 +1,27 @@
+doctype html
+html(lang="en")
+    title Pretense
+    meta( name="apple-mobile-web-app-capable", content="yes" )
+    meta( name="apple-mobile-web-app-status-bar-style", content="black-translucent" )
+    head
+        style.
+            html, body {
+                margin: 0;
+                padding: 0;
+            }
+            #container {
+                width: 0;
+                height: 0;
+            }
+    body
+        #container
+        script( src='//localhost:4000/jquery-2.1.0.min.js' )
+        script( src='//localhost:4000/W.min.js' )
+        script( src='//localhost:4000/superagent.js' )
+        script( src='//localhost:4000/pretense.js' )
+        script.
+            $( function () {
+                pretense({
+                    $el : $( '#container' )
+                })
+            });

@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+
+// #Dependencies
+// ##NPM
+var argv = require( 'optimist' ).argv;
+var pretense = require( './../lib/pretense' );
+var fs = require( 'fs' );
+var path = require( 'path' );
+
+// Set the dirname if need be
+argv.d = process.env.DIRECTORY || argv.dirname || argv.d || '.';
+
+if ( process.argv.indexOf( 'init:jade' ) > -1 ) {
+    fs.createReadStream( path.join( __dirname, '../assets/template.jade' ) )
+        .pipe( fs.createWriteStream( path.join( argv.d, 'index.jade' ) ));
+} else if (  process.argv.indexOf( 'init:servant' ) > -1 ) {
+    fs.createReadStream( path.join( __dirname, '../assets/script-run.sh' ) )
+        .pipe( fs.createWriteStream( path.join( argv.d, 'script-run.sh' ) ));
+} else {
+    // start the app
+    pretense( argv );
+}
+ 
