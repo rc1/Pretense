@@ -28,7 +28,7 @@ When a change happens to a folder, the webpage will display the last new images 
 # Command line options
 
 * `-d <String>` _optional_ - the directory to load image files from. Default: the current directory.
-* `-p <Number>` _optional_ - the port to serve image from.
+* `-p <Number>` _optional_ - the port for the pretense server.
 * `init:jade` _optional_ - creates a template.jade file in the current directory (for making a custom HTML file)
 * `init:servant` _optional_ - creates a [https://github.com/rc1/Servant](Servant) startup script and template.jade file.
 
